@@ -348,6 +348,39 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+  backuppc:
+    container_name: backuppc
+    image: adferrand/backuppc
+    restart: always
+
+    volumes:
+      - '${USERDIR}/docker/backuppc/etc:/etc/backuppc'
+      - '${USERDIR}/docker/backuppc/home:/home/backuppc'
+      - '${USERDIR}/docker/backuppc/data:/data/backuppc'
+
+    labels:
+      # TRAEFIK ENABLE
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:backup.${DOMAINNAME};"
+      - "traefik.port=8080"
+
+      # AUTH BLOCK
+      - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
+      - "traefik.frontend.auth.forward.trustForwardHeader=true"
+
+      # GENERAL SECURITY
+      - "traefik.frontend.headers.SSLRedirect=true"
+      - "traefik.frontend.headers.STSSeconds=315360000"
+      - "traefik.frontend.headers.browserXSSFilter=true"
+      - "traefik.frontend.headers.contentTypeNosniff=true"
+      - "traefik.frontend.headers.forceSTSHeader=true"
+      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+      - "traefik.frontend.headers.STSIncludeSubdomains=true"
+      - "traefik.frontend.headers.STSPreload=true"
+      - "traefik.frontend.headers.frameDeny=true"
+
+
 
 # --- END OF SERVICES --- #
 
