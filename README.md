@@ -4,7 +4,7 @@ This is my WIP custom docker-compose. Feel free to use bits from it, or copy the
 ## Basic Setup
 Traefik works as a reverse proxy to all apps that require it. It's using HTTPS on my own custom domain. I would recommend you follow the tutorial I did [here](https://www.smarthomebeginner.com/traefik-reverse-proxy-tutorial-for-docker/), to make sure you set everything up correctly.
 
-Authentication is done using [thomseddon/traefik-forward-auth](https://github.com/thomseddon/traefik-forward-auth). It authenticates users with their Google account. It took me a while to get this working properly but hopefully my setup is fairly transferrable. Refer back there if you get stuck. I'm using auth mode. 
+Authentication is done using [thomseddon/traefik-forward-auth](https://github.com/thomseddon/traefik-forward-auth). It authenticates users with their Google account. It took me a while to get this working properly but hopefully my setup is fairly transferrable. Refer back there if you get stuck. I'm using auth mode.
 
 The main network is traefik_proxy. Using the default network (by not specifying the traefik_proxy network) means they won't be proxied, and they can't communicate with containers only inside traefik_proxy network.
 
@@ -15,7 +15,7 @@ See **Credentials** for info about environment variables
 #### General Networking / Access / Control
 - `Traefik v1.7` - *Reverse proxy*
 - `thomseddon/traefik-forward-auth` - *Authentication for reverse proxy*
-- `guillaumebriday/traefik-custom-error-pages` - *Makes errors slightly more fun*
+- `apache` - *For a custom homepage and error pages*
 - `portainer/portainer` - *For managing all the containers*
 - `watchtower` - *Automatically updates containers*
 - `mariadb` - *Database app, currently only used for Guacamole*
