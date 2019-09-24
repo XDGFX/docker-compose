@@ -102,13 +102,13 @@ services:
       - "traefik.frontend.priority=1"
 
 
-  organizr:
-    image: organizrtools/organizr-v2
-    container_name: organizr
+  apache:
+    image: httpd
+    container_name: apache-startpage
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/organizr/config:/config
+      - ${USERDIR}/docker/apache-startpage/data:/usr/local/apache2/htdocs/
 
     networks:
       - traefik_proxy
