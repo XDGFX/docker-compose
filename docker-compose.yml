@@ -368,11 +368,7 @@ services:
 
     volumes:
       - "${USERDIR}/docker/photoshow/config:/config"
-<<<<<<< HEAD
-      - "/mnt/Exports/Media/Photos/Photo Library:/Pictures:ro"
-=======
-      - "/mnt/Exports/Media/Photos/Photo Library:ro"
->>>>>>> 4f0765dfcc4f35f4bf690c768915bb9ff41372d4
+      - "/mnt/Exports/Media/Photos/Photo Library":/Pictures:ro
       - "${USERDIR}/docker/photoshow/thumbs:/Thumbs"
 
     labels:
