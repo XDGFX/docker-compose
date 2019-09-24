@@ -358,7 +358,7 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-photoshow:
+  photoshow:
     image: linuxserver/photoshow
     container_name: photoshow
     restart: always
