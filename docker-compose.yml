@@ -106,8 +106,8 @@ services:
       - "traefik.port=80"
 
       # SPECIAL CATCH ALL
-      - "traefik.frontend.rule=HostRegexp:{catchall:.*}"
-      - "traefik.frontend.priority=1"
+      #- "traefik.frontend.rule=HostRegexp:{catchall:.*}"
+      #- "traefik.frontend.priority=1"
 
       # AUTH BLOCK
       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
@@ -348,21 +348,25 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-  backuppc:
-    container_name: backuppc
-    image: adferrand/backuppc
+  nessus:
+    container_name: nessus
+    image: stevemcgrath/nessus_scanner
     restart: always
 
+    networks:
+      - traefik_proxy
+
     volumes:
-      - '${USERDIR}/docker/backuppc/etc:/etc/backuppc'
-      - '${USERDIR}/docker/backuppc/home:/home/backuppc'
-      - '${USERDIR}/docker/backuppc/data:/data/backuppc'
+      - '${USERDIR}/docker/nessus/data:/opt/nessus'
+
+#    environment:
+#      - "LICENSE=${NESSUS_LICENSE}"
 
     labels:
       # TRAEFIK ENABLE
       - "traefik.enable=true"
-      - "traefik.frontend.rule=Host:backup.${DOMAINNAME};"
-      - "traefik.port=8080"
+      - "traefik.frontend.rule=Host:nessus.${DOMAINNAME};"
+      - "traefik.port=8834"
 
       # AUTH BLOCK
       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
