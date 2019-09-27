@@ -177,7 +177,7 @@ services:
     image: linuxserver/unifi-controller
     container_name: unifi-controller
 
- 	  volumes:
+    volumes:
       - ${USERDIR}/docker/unifi-controller/config:/config
 
     ports:
