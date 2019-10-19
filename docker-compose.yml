@@ -267,19 +267,7 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-# --- DATABASE --- #
-  db:
-    image: mariadb
-    container_name: db
-    restart: always
-
-    networks:
-      - traefik_proxy
-
-    volumes:
-      - ${USERDIR}/docker/storage/db:/var/lib/mysql
-
-
+# --- OTHER TOOLS --- #
   adminer:
     image: adminer
     container_name: adminer
@@ -314,7 +302,6 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-# --- OTHER TOOLS --- #
   unifi-controller:
     restart: always
     image: linuxserver/unifi-controller

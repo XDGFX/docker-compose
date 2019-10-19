@@ -152,6 +152,17 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+  db:
+    image: mariadb
+    container_name: db
+    restart: always
+
+    networks:
+      - traefik_proxy
+
+    volumes:
+      - ${USERDIR}/docker/storage/db:/var/lib/mysql
+
 # --- END OF SERVICES --- #
 
 networks:
