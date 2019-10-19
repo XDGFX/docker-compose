@@ -1,6 +1,7 @@
 version: "3.7"
 services:
 
+# --- NETWORK SERVICES --- #
   traefik:
     hostname: traefik
     image: traefik:v1.7.16
@@ -44,8 +45,7 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${USERDIR}/docker/traefik:/etc/traefik
-      - ${USERDIR}/docker/shared:/shared
+      - ${USERDIR}/docker/storage/traefik:/etc/traefik
 
 
   traefik-forward-auth:
@@ -88,13 +88,13 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-  apache:
+  apache: # {DOMAINNAME} frontend
     image: httpd
     container_name: apache-startpage
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/apache-startpage/data:/usr/local/apache2/htdocs/
+      - ${USERDIR}/docker/storage/apache-startpage/data:/usr/local/apache2/htdocs/
 
     networks:
       - traefik_proxy
@@ -126,6 +126,7 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+# --- DOCKER SERVICES --- #
   portainer:
     image: portainer/portainer
     container_name: portainer
@@ -134,7 +135,7 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${USERDIR}/docker/portainer/data:/data
+      - ${USERDIR}/docker/storage/portainer/data:/data
 
     networks:
       - traefik_proxy
@@ -172,32 +173,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
 
-  unifi-controller:
-    restart: always
-    image: linuxserver/unifi-controller
-    container_name: unifi-controller
-
-    volumes:
-      - ${USERDIR}/docker/unifi-controller/config:/config
-
-    ports:
-      - 3478:3478/udp
-      - 10001:10001/udp
-      - 8080:8080
-      - 8081:8081
-      - 8443:8443
-      - 8843:8843
-      - 8880:8880
-      - 6789:6789
-
-
+# --- MEDIA SERVER --- #
   tautulli:
     image: linuxserver/tautulli
     container_name: tautulli
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/tautulli/config:/config
+      - ${USERDIR}/docker/storage/tautulli/config:/config
 
     networks:
       - traefik_proxy
@@ -231,7 +214,7 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/deluge/config:/config
+      - ${USERDIR}/docker/storage/deluge/config:/config
       - ${DELUGE_TORRENTS_DIR}:/torrents
       - ${DELUGE_DOWNLOADS_DIR}:/downloads
 
@@ -261,6 +244,7 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+# --- DATABASE --- #
   db:
     image: mariadb
     container_name: db
@@ -270,7 +254,7 @@ services:
       - traefik_proxy
 
     volumes:
-      - ${USERDIR}/docker/db:/var/lib/mysql
+      - ${USERDIR}/docker/storage/db:/var/lib/mysql
 
 
   adminer:
@@ -307,6 +291,7 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+# --- OTHER TOOLS --- #
   guacd:
     image: "guacamole/guacd"
     container_name: guacd
@@ -317,8 +302,8 @@ services:
       - traefik_proxy
 
     volumes:
-      - "${USERDIR}/docker/guacd/data:/data"
-      - "${USERDIR}/docker/guacd/conf:/conf:ro"
+      - "${USERDIR}/docker/storage/guacd/data:/data"
+      - "${USERDIR}/docker/storage/guacd/conf:/conf:ro"
 
 
   guacamole:
@@ -331,8 +316,8 @@ services:
       - traefik_proxy
 
     volumes:
-      - "${USERDIR}/docker/guacamole/data:/data"
-      - "${USERDIR}/docker/guacamole/conf:/conf:ro"
+      - "${USERDIR}/docker/storage/guacamole/data:/data"
+      - "${USERDIR}/docker/storage/guacamole/conf:/conf:ro"
 
     environment:
       - "GUACD_HOSTNAME=guacd"
@@ -365,6 +350,25 @@ services:
       - "traefik.frontend.headers.STSIncludeSubdomains=true"
       - "traefik.frontend.headers.STSPreload=true"
       - "traefik.frontend.headers.frameDeny=true"
+
+
+  unifi-controller:
+    restart: always
+    image: linuxserver/unifi-controller
+    container_name: unifi-controller
+
+    volumes:
+      - ${USERDIR}/docker/storage/unifi-controller/config:/config
+
+      ports:
+        - 3478:3478/udp
+        - 10001:10001/udp
+        - 8080:8080
+        - 8081:8081
+        - 8443:8443
+        - 8843:8843
+        - 8880:8880
+        - 6789:6789
 
 
 # --- END OF SERVICES --- #
