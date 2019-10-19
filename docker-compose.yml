@@ -44,7 +44,7 @@ services:
 
 
   h5ai:
-    image: clue/h5ai
+    image: bixidock/h5ai
     container_name: h5ai
     restart: always
 
