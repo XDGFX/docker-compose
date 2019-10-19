@@ -58,7 +58,7 @@ services:
       # TRAEFIK ENABLE
       - "traefik.enable=true"
       - "traefik.frontend.rule=Host:files.${DOMAINNAME}"
-      - "traefik.port=80"
+      - "traefik.port=8080"
 
       # AUTH BLOCK
       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
