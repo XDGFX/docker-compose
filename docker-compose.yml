@@ -43,14 +43,13 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-  filebrowser:
-    image: filebrowser/filebrowser
-    container_name: filebrowser
+  h5ai:
+    image: clue/h5ai
+    container_name: h5ai
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/filebrowser/filebrowser.db:/database.db
-      - ${FILES_DIR}:/srv
+      - ${FILES_DIR}:/var/www
 
     networks:
       - traefik_proxy
@@ -58,7 +57,7 @@ services:
     labels:
       # TRAEFIK ENABLE
       - "traefik.enable=true"
-      - "traefik.frontend.rule=Host:filebrowser.${DOMAINNAME}"
+      - "traefik.frontend.rule=Host:files.${DOMAINNAME}"
       - "traefik.port=80"
 
       # AUTH BLOCK
