@@ -49,7 +49,6 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/filebrowser/.filebrowser.json:/.filebrowser.json
       - ${USERDIR}/docker/storage/filebrowser/filebrowser.db:/database.db
       - ${FILES_DIR}:/srv
 
