@@ -273,9 +273,6 @@ services:
     container_name: adminer
     restart: always
 
-    depends_on:
-      - db
-
     networks:
       - traefik_proxy
 
