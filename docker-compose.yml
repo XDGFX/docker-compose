@@ -2,7 +2,7 @@ version: "3.7"
 services:
 
 ## --- ONLY NON VITAL / TESTING SERVICES HERE ---
-## --- VITAL SERVICES GO IN docker-compose.vital.yml ---
+## --- VITAL SERVICES GO IN vital-docker-compose.yml ---
 
 # --- NETWORK SERVICES --- #
   apache: # {DOMAINNAME} frontend
