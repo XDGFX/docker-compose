@@ -43,13 +43,15 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-  h5ai:
-    image: bixidock/h5ai
-    container_name: h5ai
+  filebrowser:
+    image: filebrowser/filebrowser
+    container_name: filebrowser
     restart: always
 
     volumes:
-      - ${FILES_DIR}:/var/www
+      - ${USERDIR}/docker/storage/filebrowser/.filebrowser.json:/.filebrowser.json
+      - ${USERDIR}/docker/storage/filebrowser/filebrowser.db:/database.db
+      - ${FILES_DIR}:/srv
 
     networks:
       - traefik_proxy
@@ -57,8 +59,8 @@ services:
     labels:
       # TRAEFIK ENABLE
       - "traefik.enable=true"
-      - "traefik.frontend.rule=Host:files.${DOMAINNAME}"
-      - "traefik.port=8080"
+      - "traefik.frontend.rule=Host:filebrowser.${DOMAINNAME}"
+      - "traefik.port=80"
 
       # AUTH BLOCK
       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
