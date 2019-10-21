@@ -215,7 +215,7 @@ services:
     labels:
       # TRAEFIK ENABLE
       - "traefik.enable=true"
-      - "traefik.frontend.rule=Host:transmission.${DOMAINNAME}"
+      - "traefik.frontend.rule=Host:transmission.${DOMAINNAME};AddPrefix: /transmission/web/web/;"
       - "traefik.port=9091"
 
       # AUTH BLOCK
