@@ -415,7 +415,6 @@ papermc:
       - ${USERDIR}/docker/storage/papermc/logs:/opt/minecraft/logs
 
 
-
 # --- END OF SERVICES --- #
 
 networks:
