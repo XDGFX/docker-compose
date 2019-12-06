@@ -392,6 +392,29 @@ services:
       - 6789:6789
 
 
+# --- GAME SERVERS --- #
+papermc:
+    image: felixklauke/paperspigot:1.14.4
+    container_name: papermc
+    stdin_open: true
+    tty: true
+    restart: always
+
+    networks:
+      - default
+
+    ports:
+      - 25565:25565
+
+    volumes:
+      - ${USERDIR}/docker/storage/papermc/config:/opt/minecraft/config
+      - ${USERDIR}/docker/storage/papermc/worlds:/opt/minecraft/worlds
+      - ${USERDIR}/docker/storage/papermc/plugins:/opt/minecraft/plugins
+      - ${USERDIR}/docker/storage/papermc/data:/opt/minecraft/data
+      - ${USERDIR}/docker/storage/papermc/logs:/opt/minecraft/logs
+
+
+
 # --- END OF SERVICES --- #
 
 networks:
