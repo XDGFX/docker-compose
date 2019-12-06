@@ -394,7 +394,7 @@ services:
 
 
 # --- GAME SERVERS --- #
-papermc:
+  papermc:
     image: felixklauke/paperspigot:1.14.4
     container_name: papermc
     stdin_open: true
