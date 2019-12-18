@@ -24,6 +24,10 @@ services:
       - CF_API_EMAIL=${CLOUDFLARE_EMAIL}
       - CF_API_KEY=${CLOUDFLARE_API_KEY}
 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
     labels:
       # TRAEFIK ENABLE
       - "traefik.enable=true"
@@ -68,6 +72,10 @@ services:
       - AUTH_HOST=auth.${DOMAINNAME}
       - WHITELIST=${TRAEFIK_WHITELIST}
 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
     labels:
       # TRAEFIK ENABLE
       - traefik.enable=true
@@ -105,6 +113,10 @@ services:
       - "${USERDIR}/docker/storage/guacd/data:/data"
       - "${USERDIR}/docker/storage/guacd/conf:/conf:ro"
 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
 
   guacamole:
     image: "guacamole/guacamole"
@@ -118,6 +130,10 @@ services:
     volumes:
       - "${USERDIR}/docker/storage/guacamole/data:/data"
       - "${USERDIR}/docker/storage/guacamole/conf:/conf:ro"
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
 
     environment:
       - "GUACD_HOSTNAME=guacd"
@@ -162,6 +178,10 @@ services:
 
     volumes:
       - ${USERDIR}/docker/storage/db:/var/lib/mysql
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
 
 # --- END OF SERVICES --- #
 

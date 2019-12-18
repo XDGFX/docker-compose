@@ -13,6 +13,10 @@ services:
     volumes:
       - ${USERDIR}/docker/storage/apache-startpage/data:/usr/local/apache2/htdocs/
 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
     networks:
       - traefik_proxy
 
@@ -88,6 +92,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${USERDIR}/docker/storage/portainer/data:/data
 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
     networks:
       - traefik_proxy
 
@@ -122,6 +130,10 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
 
 
 # --- MEDIA SERVER --- #
@@ -177,6 +189,10 @@ services:
 
     volumes:
       - ${USERDIR}/docker/storage/tautulli/config:/config
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
 
     networks:
       - traefik_proxy
@@ -332,6 +348,10 @@ services:
     volumes:
       - ${USERDIR}/docker/storage/jackett/config:/config
 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
     networks:
       - traefik_proxy
 
@@ -445,6 +465,10 @@ services:
     networks:
       - traefik_proxy
 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
     labels:
       # TRAEFIK ENABLE
       - "traefik.enable=true"
@@ -475,6 +499,10 @@ services:
 
     volumes:
       - ${USERDIR}/docker/storage/unifi-controller/config:/config
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
 
     ports:
       - 3478:3478/udp
@@ -554,6 +582,10 @@ services:
       - ${USERDIR}/docker/storage/papermc/plugins:/opt/minecraft/plugins
       - ${USERDIR}/docker/storage/papermc/data:/opt/minecraft/data
       - ${USERDIR}/docker/storage/papermc/logs:/opt/minecraft/logs
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
 
 
 # --- END OF SERVICES --- #
