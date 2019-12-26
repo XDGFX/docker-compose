@@ -1,6 +1,5 @@
 # Ignore everything
 *
-.env
 
 # But not these files...
 !*docker-compose.yml

@@ -52,7 +52,7 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${USERDIR}/docker/storage/traefik:/etc/traefik
+      - ${DOCKER_STORAGE}/traefik:/etc/traefik
 
 
   traefik-forward-auth:
@@ -66,15 +66,11 @@ services:
     environment:
       - CLIENT_ID=${TRAEFIK_CLIENT_ID}
       - CLIENT_SECRET=${TRAEFIK_CLIENT_SECRET}
-      - OIDC_ISSUER=https://accounts.google.com
       - SECRET=${TRAEFIK_SECRET}
-      - COOKIE_DOMAINS=${DOMAINNAME}
+      - OIDC_ISSUER=https://accounts.google.com
+      - COOKIE_DOMAIN=${DOMAINNAME}
       - AUTH_HOST=auth.${DOMAINNAME}
       - WHITELIST=${TRAEFIK_WHITELIST}
-
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
 
     labels:
       # TRAEFIK ENABLE
@@ -110,8 +106,8 @@ services:
       - traefik_proxy
 
     volumes:
-      - "${USERDIR}/docker/storage/guacd/data:/data"
-      - "${USERDIR}/docker/storage/guacd/conf:/conf:ro"
+      - "${DOCKER_STORAGE}/guacd/data:/data"
+      - "${DOCKER_STORAGE}/guacd/conf:/conf:ro"
 
     environment:
       - PUID=${PUID}
@@ -128,8 +124,8 @@ services:
       - traefik_proxy
 
     volumes:
-      - "${USERDIR}/docker/storage/guacamole/data:/data"
-      - "${USERDIR}/docker/storage/guacamole/conf:/conf:ro"
+      - "${DOCKER_STORAGE}/guacamole/data:/data"
+      - "${DOCKER_STORAGE}/guacamole/conf:/conf:ro"
 
     environment:
       - PUID=${PUID}
@@ -177,7 +173,7 @@ services:
       - traefik_proxy
 
     volumes:
-      - ${USERDIR}/docker/storage/db:/var/lib/mysql
+      - ${DOCKER_STORAGE}/db:/var/lib/mysql
 
     environment:
       - PUID=${PUID}

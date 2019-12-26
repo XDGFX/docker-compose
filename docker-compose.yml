@@ -6,12 +6,12 @@ services:
 
 # --- NETWORK SERVICES --- #
   apache: # {DOMAINNAME} frontend
-    image: httpd
+    image: httpd:alpine
     container_name: apache-startpage
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/apache-startpage/data:/usr/local/apache2/htdocs/
+      - ${DOCKER_STORAGE}/apache-startpage/data:/usr/local/apache2/htdocs/
 
     environment:
       - PUID=${PUID}
@@ -90,7 +90,7 @@ services:
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${USERDIR}/docker/storage/portainer/data:/data
+      - ${DOCKER_STORAGE}/portainer/data:/data
 
     environment:
       - PUID=${PUID}
@@ -143,8 +143,9 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/plex/config:/config
+      - ${DOCKER_STORAGE}/plex/config:/config
       - /mnt/uluru/Media:/mnt/media
+      - /opt/PPP:/mnt/PPP
 
     environment:
       - PUID=${PUID}
@@ -188,7 +189,7 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/tautulli/config:/config
+      - ${DOCKER_STORAGE}/tautulli/config:/config
 
     environment:
       - PUID=${PUID}
@@ -226,7 +227,7 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/deluge/config:/config
+      - ${DOCKER_STORAGE}/deluge/config:/config
       - ${DELUGE_TORRENTS_DIR}:/torrents
       - ${DELUGE_DOWNLOADS_DIR}:/downloads
 
@@ -266,7 +267,7 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/sonarr/config:/config
+      - ${DOCKER_STORAGE}/sonarr/config:/config
       - ${TV_DIR}:/tv
       - ${DELUGE_DOWNLOADS_DIR}:/downloads
 
@@ -306,7 +307,7 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/radarr/config:/config
+      - ${DOCKER_STORAGE}/radarr/config:/config
       - ${FILMS_DIR}:/movies
       - ${DELUGE_DOWNLOADS_DIR}:/downloads
 
@@ -346,7 +347,7 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/jackett/config:/config
+      - ${DOCKER_STORAGE}/jackett/config:/config
 
     environment:
       - PUID=${PUID}
@@ -385,7 +386,7 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/crashplan/config:/config
+      - ${DOCKER_STORAGE}/crashplan/config:/config
       - /mnt/uluru:/storage:ro
 
     environment:
@@ -424,12 +425,13 @@ services:
     restart: always
 
     volumes:
-      - ${USERDIR}/docker/storage/duplicati/config:/config
-      - /:/mnt:ro
+      - "${DOCKER_STORAGE}/duplicati/config:/config"
+      - "/:/mnt:ro"
+      - "/mnt/uluru/Backups:/backups"
 
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
+      - PUID=0
+      - PGID=0
 
     networks:
       - traefik_proxy
@@ -498,7 +500,7 @@ services:
     container_name: unifi-controller
 
     volumes:
-      - ${USERDIR}/docker/storage/unifi-controller/config:/config
+      - ${DOCKER_STORAGE}/unifi-controller/config:/config
 
     environment:
       - PUID=${PUID}
@@ -561,10 +563,53 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+#   nessus:
+#     image: stevemcgrath/nessus_scanner
+#     container_name: nessus
+#     restart: always
+
+#     networks:
+#       - traefik_proxy
+
+# #    volumes:
+# #      - ${DOCKER_STORAGE}/nessus/opt:/opt/nessus
+# #      - ${DOCKER_STORAGE}/nessus/var:/var/nessus
+
+#     environment:
+#       - PUID=${PUID}
+#       - PGID=${PGID}
+#       - LICENSE=${NESSUS_LICENSE}
+#       - ADMIN_USER=${NESSUS_USER}
+#       - ADMIN_PASS=${NESSUS_PASSWORD}
+
+#     labels:
+#       # TRAEFIK ENABLE
+#       - "traefik.enable=true"
+#       - "traefik.frontend.rule=Host:nessus.${DOMAINNAME}"
+#       - "traefik.port=8834"
+#       - "traefik.protocol=https"
+
+#       # AUTH BLOCK
+#       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+#       - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
+#       - "traefik.frontend.auth.forward.trustForwardHeader=true"
+
+#       # GENERAL SECURITY
+#       - "traefik.frontend.headers.SSLRedirect=true"
+#       - "traefik.frontend.headers.STSSeconds=315360000"
+#       - "traefik.frontend.headers.browserXSSFilter=true"
+#       - "traefik.frontend.headers.contentTypeNosniff=true"
+#       - "traefik.frontend.headers.forceSTSHeader=true"
+#       - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+#       - "traefik.frontend.headers.STSIncludeSubdomains=true"
+#       - "traefik.frontend.headers.STSPreload=true"
+#       - "traefik.frontend.headers.frameDeny=true"
+
+
 
 # --- GAME SERVERS --- #
   papermc:
-    image: felixklauke/paperspigot:1.14.4
+    image: marctv/minecraft-papermc-server
     container_name: papermc
     stdin_open: true
     tty: true
@@ -577,11 +622,7 @@ services:
       - 25565:25565
 
     volumes:
-      - ${USERDIR}/docker/storage/papermc/config:/opt/minecraft/config
-      - ${USERDIR}/docker/storage/papermc/worlds:/opt/minecraft/worlds
-      - ${USERDIR}/docker/storage/papermc/plugins:/opt/minecraft/plugins
-      - ${USERDIR}/docker/storage/papermc/data:/opt/minecraft/data
-      - ${USERDIR}/docker/storage/papermc/logs:/opt/minecraft/logs
+      - ${DOCKER_STORAGE}/papermc:/data
 
     environment:
       - PUID=${PUID}
