@@ -26,10 +26,6 @@ services:
       - "traefik.frontend.rule=Host:${DOMAINNAME}"
       - "traefik.port=80"
 
-      # SPECIAL CATCH ALL
-      #- "traefik.frontend.rule=HostRegexp:{catchall:.*}"
-      #- "traefik.frontend.priority=1"
-
       # AUTH BLOCK
       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
       - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
@@ -45,40 +41,6 @@ services:
       - "traefik.frontend.headers.STSIncludeSubdomains=true"
       - "traefik.frontend.headers.STSPreload=true"
       - "traefik.frontend.headers.frameDeny=true"
-
-
-#  h5ai:
-#    image: clue/h5ai
-#    container_name: h5ai
-#    restart: always
-#
-#    volumes:
-#      - ${FILES_DIR}:/var/www
-#
-#    networks:
-#      - traefik_proxy
-#
-#    labels:
-#      # TRAEFIK ENABLE
-#      - "traefik.enable=true"
-#      - "traefik.frontend.rule=Host:files.${DOMAINNAME}"
-#      - "traefik.port=80"
-#
-#      # AUTH BLOCK
-#      - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
-#      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
-#      - "traefik.frontend.auth.forward.trustForwardHeader=true"
-#
-#      # GENERAL SECURITY
-#      - "traefik.frontend.headers.SSLRedirect=true"
-#      - "traefik.frontend.headers.STSSeconds=315360000"
-#      - "traefik.frontend.headers.browserXSSFilter=true"
-#      - "traefik.frontend.headers.contentTypeNosniff=true"
-#      - "traefik.frontend.headers.forceSTSHeader=true"
-#      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
-#      - "traefik.frontend.headers.STSIncludeSubdomains=true"
-#      - "traefik.frontend.headers.STSPreload=true"
-#      - "traefik.frontend.headers.frameDeny=true"
 
 
 # --- DOCKER SERVICES --- #
@@ -122,11 +84,10 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-  watchtower:
-    container_name: watchtower
+  ouroboros:
+    container_name: ouroboros
     restart: always
-    image: v2tec/watchtower
-    command: --schedule "0 0 4 * * *" --cleanup
+    image: pyouroboros/ouroboros
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -134,6 +95,11 @@ services:
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
+      - CLEANUP=true
+      - INTERVAL=300
+      - LOG_LEVEL=info
+      - SELF_UPDATE=true
+
 
 
 # --- MEDIA SERVER --- #
@@ -144,7 +110,7 @@ services:
 
     volumes:
       - ${DOCKER_STORAGE}/plex/config:/config
-      - /mnt/uluru/Media:/mnt/media
+      - ${MEDIA_DIR}:/mnt/media
       - /opt/PPP:/mnt/PPP
 
     environment:
@@ -387,7 +353,7 @@ services:
 
     volumes:
       - ${DOCKER_STORAGE}/crashplan/config:/config
-      - /mnt/uluru:/storage:ro
+      - ${FILES_DIR}:/storage:ro
 
     environment:
       - PUID=${PUID}
@@ -427,7 +393,7 @@ services:
     volumes:
       - "${DOCKER_STORAGE}/duplicati/config:/config"
       - "/:/mnt:ro"
-      - "/mnt/uluru/Backups:/backups"
+      - "${BACKUPS_DIR}:/backups"
 
     environment:
       - PUID=0
@@ -532,10 +498,11 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_STORAGE}/netdata/data/config:/etc/netdata
 
     environment:
       - PUID=${PUID}
-      - PGID=${PGID}
+      - PGID=999  #${PGID}
 
     networks:
       - traefik_proxy
@@ -563,47 +530,44 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-#   nessus:
-#     image: stevemcgrath/nessus_scanner
-#     container_name: nessus
-#     restart: always
+  nextcloud:
+    image: linuxserver/nextcloud
+    container_name: nextcloud
+    restart: always
 
-#     networks:
-#       - traefik_proxy
+    volumes:
+      - ${DOCKER_STORAGE}/nextcloud/data/config:/config
+      - ${NEXTCLOUD_DIR}:/data
 
-# #    volumes:
-# #      - ${DOCKER_STORAGE}/nessus/opt:/opt/nessus
-# #      - ${DOCKER_STORAGE}/nessus/var:/var/nessus
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
 
-#     environment:
-#       - PUID=${PUID}
-#       - PGID=${PGID}
-#       - LICENSE=${NESSUS_LICENSE}
-#       - ADMIN_USER=${NESSUS_USER}
-#       - ADMIN_PASS=${NESSUS_PASSWORD}
+    networks:
+      - traefik_proxy
 
-#     labels:
-#       # TRAEFIK ENABLE
-#       - "traefik.enable=true"
-#       - "traefik.frontend.rule=Host:nessus.${DOMAINNAME}"
-#       - "traefik.port=8834"
-#       - "traefik.protocol=https"
+    labels:
+      # TRAEFIK ENABLE
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:nextcloud.${DOMAINNAME}"
+      - "traefik.port=443"
+      - "traefik.protocol=https"  # Needed otherwise 400 error
 
-#       # AUTH BLOCK
-#       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
-#       - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
-#       - "traefik.frontend.auth.forward.trustForwardHeader=true"
+      # AUTH BLOCK
+      - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
+      - "traefik.frontend.auth.forward.trustForwardHeader=true"
 
-#       # GENERAL SECURITY
-#       - "traefik.frontend.headers.SSLRedirect=true"
-#       - "traefik.frontend.headers.STSSeconds=315360000"
-#       - "traefik.frontend.headers.browserXSSFilter=true"
-#       - "traefik.frontend.headers.contentTypeNosniff=true"
-#       - "traefik.frontend.headers.forceSTSHeader=true"
-#       - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
-#       - "traefik.frontend.headers.STSIncludeSubdomains=true"
-#       - "traefik.frontend.headers.STSPreload=true"
-#       - "traefik.frontend.headers.frameDeny=true"
+      # GENERAL SECURITY
+      - "traefik.frontend.headers.SSLRedirect=true"
+      - "traefik.frontend.headers.STSSeconds=315360000"
+      - "traefik.frontend.headers.browserXSSFilter=true"
+      - "traefik.frontend.headers.contentTypeNosniff=true"
+      - "traefik.frontend.headers.forceSTSHeader=true"
+      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+      - "traefik.frontend.headers.STSIncludeSubdomains=true"
+      - "traefik.frontend.headers.STSPreload=true"
+      - "traefik.frontend.headers.frameDeny=true"
 
 
 
@@ -613,7 +577,7 @@ services:
     container_name: papermc
     stdin_open: true
     tty: true
-    restart: always
+    restart: unless-stopped
 
     networks:
       - default
