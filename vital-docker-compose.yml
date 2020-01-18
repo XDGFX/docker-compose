@@ -95,6 +95,18 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+  cloudflare-ddns:
+    image: oznu/cloudflare-ddns:latest
+    container_name: cloudflare-ddns
+    restart: always
+
+    environment:
+      - API_KEY=${CLOUDFLARE_DDNS_API_KEY}
+      - ZONE=${DOMAINNAME}
+      - PROXIED=false
+
+
+
 # --- OTHER TOOLS --- #
   guacd:
     image: "guacamole/guacd"
