@@ -21,10 +21,8 @@ services:
       - "443:443"
 
     environment:
-      - CF_API_EMAIL=${CLOUDFLARE_EMAIL}
-      - CF_API_KEY=${CLOUDFLARE_API_KEY}
-
-    environment:
+      - CLOUDFLARE_EMAIL=${CLOUDFLARE_EMAIL}
+      - CLOUDFLARE_API_KEY=${CLOUDFLARE_API_KEY}
       - PUID=${PUID}
       - PGID=${PGID}
 
@@ -142,8 +140,6 @@ services:
   #   environment:
   #     - PUID=${PUID}
   #     - PGID=${PGID}
-
-  #   environment:
   #     - "GUACD_HOSTNAME=guacd"
   #     - "GUACD_PORT=4822"
   #     - "MYSQL_HOSTNAME=db"

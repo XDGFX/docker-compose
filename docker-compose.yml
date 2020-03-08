@@ -8,7 +8,7 @@ services:
   heimdall:
     image: linuxserver/heimdall
     container_name: heimdall
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/heimdall/config:/config
@@ -44,10 +44,26 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+  # torproxy:
+  #   image: dperson/torproxy
+  #   container_name: torproxy
+  #   restart: unless-stopped
+
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+
+  #   networks:
+  #     - default
+
+  #   ports:
+  #     - "8118:8118"
+
+
   # apache: # {DOMAINNAME} frontend
   #   image: httpd:alpine
   #   container_name: apache-startpage
-  #   restart: always
+  #   restart: unless-stopped
 
   #   volumes:
   #     - ${DOCKER_STORAGE}/apache-startpage/data:/usr/local/apache2/htdocs/
@@ -87,7 +103,7 @@ services:
   portainer:
     image: portainer/portainer
     container_name: portainer
-    restart: always
+    restart: unless-stopped
     command: -H unix:///var/run/docker.sock
 
     volumes:
@@ -126,7 +142,7 @@ services:
 
   ouroboros:
     container_name: ouroboros
-    restart: always
+    restart: unless-stopped
     image: pyouroboros/ouroboros
 
     volumes:
@@ -146,7 +162,7 @@ services:
   plex:
     container_name: plex
     image: linuxserver/plex
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/plex/config:/config
@@ -159,6 +175,9 @@ services:
 
     networks:
       - traefik_proxy
+
+    devices:
+      - "/dev/dvb:/dev/dvb"
 
     ports:
       - "32400:32400/tcp"
@@ -192,7 +211,7 @@ services:
   tautulli:
     image: linuxserver/tautulli
     container_name: tautulli
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/tautulli/config:/config
@@ -230,7 +249,7 @@ services:
   deluge:
     image: linuxserver/deluge
     container_name: deluge
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/deluge/config:/config
@@ -270,7 +289,7 @@ services:
   sonarr:
     image: linuxserver/sonarr
     container_name: sonarr
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/sonarr/config:/config
@@ -310,7 +329,7 @@ services:
   radarr:
     image: linuxserver/radarr
     container_name: radarr
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/radarr/config:/config
@@ -350,7 +369,7 @@ services:
   jackett:
     image: linuxserver/jackett
     container_name: jackett
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/jackett/config:/config
@@ -385,11 +404,51 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+  booksonic:
+    image: linuxserver/booksonic:prerelease
+    container_name: booksonic
+    restart: unless-stopped
+
+    volumes:
+      - ${DOCKER_STORAGE}/booksonic/config:/config
+      - ${AUDIOBOOKS_DIR}:/audiobooks
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+    networks:
+      - traefik_proxy
+
+    labels:
+      # TRAEFIK ENABLE
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:booksonic.${DOMAINNAME}"
+      - "traefik.port=4040"
+
+      # AUTH BLOCK
+      - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
+      - "traefik.frontend.auth.forward.trustForwardHeader=true"
+
+      # GENERAL SECURITY
+      - "traefik.frontend.headers.SSLRedirect=true"
+      - "traefik.frontend.headers.STSSeconds=315360000"
+      - "traefik.frontend.headers.browserXSSFilter=true"
+      - "traefik.frontend.headers.contentTypeNosniff=true"
+      - "traefik.frontend.headers.forceSTSHeader=true"
+      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+      - "traefik.frontend.headers.STSIncludeSubdomains=true"
+      - "traefik.frontend.headers.STSPreload=true"
+      - "traefik.frontend.headers.frameDeny=true"
+
+
+
 # --- OTHER TOOLS --- #
   crashplan:
     image: jlesage/crashplan-pro
     container_name: crashplan
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/crashplan/config:/config
@@ -428,7 +487,7 @@ services:
   duplicati:
     image: linuxserver/duplicati
     container_name: duplicati
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - "${DOCKER_STORAGE}/duplicati/config:/config"
@@ -468,7 +527,7 @@ services:
   adminer:
     image: adminer
     container_name: adminer
-    restart: always
+    restart: unless-stopped
 
     networks:
       - traefik_proxy
@@ -501,7 +560,7 @@ services:
 
 
   # unifi-controller:
-  #   restart: always
+  #   restart: unless-stopped
   #   image: linuxserver/unifi-controller
   #   container_name: unifi-controller
 
@@ -526,7 +585,7 @@ services:
   netdata:
     image: netdata/netdata
     container_name: netdata
-    restart: always
+    restart: unless-stopped
 
     cap_add:
       - SYS_PTRACE
@@ -573,7 +632,7 @@ services:
   nextcloud:
     image: linuxserver/nextcloud
     container_name: nextcloud
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/nextcloud/data/config:/config
@@ -614,7 +673,7 @@ services:
   # leantime:
   #   image: leantime/leantime
   #   container_name: leantime
-  #   restart: always
+  #   restart: unless-stopped
 
   #   environment:
   #     - PUID=${PUID}
@@ -654,7 +713,7 @@ services:
   grocy:
     image: linuxserver/grocy
     container_name: grocy
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/grocy/config:/config
@@ -692,7 +751,7 @@ services:
   firefox:
     image: jlesage/firefox
     container_name: firefox
-    restart: always
+    restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/firefox/config:/config:rw
@@ -714,6 +773,37 @@ services:
       - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
       - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
       - "traefik.frontend.auth.forward.trustForwardHeader=true"
+
+      # GENERAL SECURITY
+      - "traefik.frontend.headers.SSLRedirect=true"
+      - "traefik.frontend.headers.STSSeconds=315360000"
+      - "traefik.frontend.headers.browserXSSFilter=true"
+      - "traefik.frontend.headers.contentTypeNosniff=true"
+      - "traefik.frontend.headers.forceSTSHeader=true"
+      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+      - "traefik.frontend.headers.STSIncludeSubdomains=true"
+      - "traefik.frontend.headers.STSPreload=true"
+      - "traefik.frontend.headers.frameDeny=true"
+
+
+  transfer.sh:
+    image: dutchcoders/transfer.sh
+    container_name: transfer.sh
+    restart: unless-stopped
+    command: --provider local --basedir /tmp/ --http-auth-user ${TRANSFER_USER} --http-auth-pass ${TRANSFER_PASSWORD}
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+    networks:
+      - traefik_proxy
+
+    labels:
+      # TRAEFIK ENABLE
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:transfer.${DOMAINNAME}"
+      - "traefik.port=8080"
 
       # GENERAL SECURITY
       - "traefik.frontend.headers.SSLRedirect=true"
