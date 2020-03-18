@@ -404,43 +404,43 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
-  booksonic:
-    image: linuxserver/booksonic:prerelease
-    container_name: booksonic
-    restart: unless-stopped
+  # booksonic:
+  #   image: linuxserver/booksonic:prerelease
+  #   container_name: booksonic
+  #   restart: unless-stopped
 
-    volumes:
-      - ${DOCKER_STORAGE}/booksonic/config:/config
-      - ${AUDIOBOOKS_DIR}:/audiobooks
+  #   volumes:
+  #     - ${DOCKER_STORAGE}/booksonic/config:/config
+  #     - ${AUDIOBOOKS_DIR}:/audiobooks
 
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
 
-    networks:
-      - traefik_proxy
+  #   networks:
+  #     - traefik_proxy
 
-    labels:
-      # TRAEFIK ENABLE
-      - "traefik.enable=true"
-      - "traefik.frontend.rule=Host:booksonic.${DOMAINNAME}"
-      - "traefik.port=4040"
+  #   labels:
+  #     # TRAEFIK ENABLE
+  #     - "traefik.enable=true"
+  #     - "traefik.frontend.rule=Host:booksonic.${DOMAINNAME}"
+  #     - "traefik.port=4040"
 
-      # AUTH BLOCK
-      - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
-      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
-      - "traefik.frontend.auth.forward.trustForwardHeader=true"
+  #     # AUTH BLOCK
+  #     - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+  #     - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
+  #     - "traefik.frontend.auth.forward.trustForwardHeader=true"
 
-      # GENERAL SECURITY
-      - "traefik.frontend.headers.SSLRedirect=true"
-      - "traefik.frontend.headers.STSSeconds=315360000"
-      - "traefik.frontend.headers.browserXSSFilter=true"
-      - "traefik.frontend.headers.contentTypeNosniff=true"
-      - "traefik.frontend.headers.forceSTSHeader=true"
-      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
-      - "traefik.frontend.headers.STSIncludeSubdomains=true"
-      - "traefik.frontend.headers.STSPreload=true"
-      - "traefik.frontend.headers.frameDeny=true"
+  #     # GENERAL SECURITY
+  #     - "traefik.frontend.headers.SSLRedirect=true"
+  #     - "traefik.frontend.headers.STSSeconds=315360000"
+  #     - "traefik.frontend.headers.browserXSSFilter=true"
+  #     - "traefik.frontend.headers.contentTypeNosniff=true"
+  #     - "traefik.frontend.headers.forceSTSHeader=true"
+  #     - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+  #     - "traefik.frontend.headers.STSIncludeSubdomains=true"
+  #     - "traefik.frontend.headers.STSPreload=true"
+  #     - "traefik.frontend.headers.frameDeny=true"
 
 
 
@@ -635,9 +635,8 @@ services:
     restart: unless-stopped
 
     volumes:
-      - ${DOCKER_STORAGE}/nextcloud/data/config:/config
-      - ${DOCKER_STORAGE}/nextcloud/data/storage:/data
-#      - ${NEXTCLOUD_DIR}:/data
+      - ${DOCKER_STORAGE}/nextcloud/config:/config
+      - ${NEXTCLOUD_DIR}:/data
 
     environment:
       - PUID=${PUID}
@@ -668,46 +667,6 @@ services:
       - "traefik.frontend.headers.STSIncludeSubdomains=true"
       - "traefik.frontend.headers.STSPreload=true"
       - "traefik.frontend.headers.frameDeny=true"
-
-
-  # leantime:
-  #   image: leantime/leantime
-  #   container_name: leantime
-  #   restart: unless-stopped
-
-  #   environment:
-  #     - PUID=${PUID}
-  #     - PGID=${PGID}
-  #     - DB_HOST=db
-  #     - MYSQL_USER=leantime
-  #     - MYSQL_PASSWORD=${LEANTIME_PASS}
-  #     - MYSQL_DATABASE=leantime
-
-  #   networks:
-  #     - traefik_proxy
-
-  #   labels:
-  #     # TRAEFIK ENABLE
-  #     - "traefik.enable=true"
-  #     - "traefik.frontend.rule=Host:leantime.${DOMAINNAME}"
-  #     - "traefik.port=80"
-
-  #     # AUTH BLOCK
-  #     # - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
-  #     # - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
-  #     # - "traefik.frontend.auth.forward.trustForwardHeader=true"
-
-  #     # GENERAL SECURITY
-  #     - "traefik.frontend.headers.SSLRedirect=true"
-  #     - "traefik.frontend.headers.STSSeconds=315360000"
-  #     - "traefik.frontend.headers.browserXSSFilter=true"
-  #     - "traefik.frontend.headers.contentTypeNosniff=true"
-  #     - "traefik.frontend.headers.forceSTSHeader=true"
-  #     - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
-  #     - "traefik.frontend.headers.STSIncludeSubdomains=true"
-  #     - "traefik.frontend.headers.STSPreload=true"
-  #     - "traefik.frontend.headers.frameDeny=true"
-
 
 
   grocy:
@@ -817,10 +776,96 @@ services:
       - "traefik.frontend.headers.frameDeny=true"
 
 
+  gitea:
+    image: gitea/gitea
+    container_name: gitea
+    restart: unless-stopped
+
+    volumes:
+      - ${DOCKER_STORAGE}/gitea:/data
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - DB_TYPE=mysql
+      - DB_HOST=db:3306
+      - DB_NAME=gitea
+      - DB_USER=gitea
+      - DB_PASSWD=${GITEA_PASSWORD}
+
+    networks:
+      - traefik_proxy
+
+    labels:
+      # TRAEFIK ENABLE
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:gitea.${DOMAINNAME}"
+      - "traefik.port=3000"
+
+      # # AUTH BLOCK
+      # - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+      # - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
+      # - "traefik.frontend.auth.forward.trustForwardHeader=true"
+
+      # GENERAL SECURITY
+      - "traefik.frontend.headers.SSLRedirect=true"
+      - "traefik.frontend.headers.STSSeconds=315360000"
+      - "traefik.frontend.headers.browserXSSFilter=true"
+      - "traefik.frontend.headers.contentTypeNosniff=true"
+      - "traefik.frontend.headers.forceSTSHeader=true"
+      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+      - "traefik.frontend.headers.STSIncludeSubdomains=true"
+      - "traefik.frontend.headers.STSPreload=true"
+      - "traefik.frontend.headers.frameDeny=true"
+
+
+  resilio-sync:
+    image: linuxserver/resilio-sync
+    container_name: resilio-sync
+    restart: unless-stopped
+
+    volumes:
+      - ${DOCKER_STORAGE}/resilio-sync/config:/config
+      - ${DOCKER_STORAGE}/resilio-sync/downloads:/downloads
+      - ${SYNC_DATA_DIR}:/sync
+
+    ports:
+      - 55555:55555
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+    networks:
+      - traefik_proxy
+
+    labels:
+      # TRAEFIK ENABLE
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:sync.${DOMAINNAME}"
+      - "traefik.port=8888"
+
+      # AUTH BLOCK
+      - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+      - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
+      - "traefik.frontend.auth.forward.trustForwardHeader=true"
+
+      # GENERAL SECURITY
+      - "traefik.frontend.headers.SSLRedirect=true"
+      - "traefik.frontend.headers.STSSeconds=315360000"
+      - "traefik.frontend.headers.browserXSSFilter=true"
+      - "traefik.frontend.headers.contentTypeNosniff=true"
+      - "traefik.frontend.headers.forceSTSHeader=true"
+      - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
+      - "traefik.frontend.headers.STSIncludeSubdomains=true"
+      - "traefik.frontend.headers.STSPreload=true"
+      - "traefik.frontend.headers.frameDeny=true"
+
+
 
 # --- GAME SERVERS --- #
   papermc:
-    image: marctv/minecraft-papermc-server
+    image: marctv/minecraft-papermc-server:1.15
     container_name: papermc
     stdin_open: true
     tty: true
