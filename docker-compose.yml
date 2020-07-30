@@ -531,6 +531,9 @@ services:
     container_name: nextcloud
     restart: unless-stopped
 
+    ports:
+      - 1234:443
+
     volumes:
       - ${DOCKER_STORAGE}/nextcloud/config:/config
       - ${NEXTCLOUD_DIR}:/data
