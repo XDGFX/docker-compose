@@ -44,34 +44,34 @@ services:
   #     - "traefik.frontend.headers.frameDeny=true"
 
 
-  # vpn:
-  #   image: azinchen/nordvpn
-  #   container_name: vpn
-  #   restart: unless-stopped
-  #   #network_mode: bridge
+  vpn:
+    image: azinchen/nordvpn
+    container_name: vpn
+    restart: unless-stopped
+    # network_mode: bridge
 
-  #   cap_add:
-  #     - net_admin
+    cap_add:
+      - net_admin
 
-  #   devices:
-  #     - /dev/net/tun
+    devices:
+      - /dev/net/tun
 
-  #   environment:
-  #     - PUID=${PUID}
-  #     - PGID=${PGID}
-  #     - USER=${VPN_USER}
-  #     - PASS=${VPN_PASS}
-  #     - COUNTRY=Netherlands
-  #     - CATEGORY=P2P
-  #     - TECHNOLOGY=NordLynx
-  #     - NETWORK=192.168.1.0/24
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - USER=${VPN_USER}
+      - PASS=${VPN_PASS}
+      - COUNTRY=Netherlands
+      - CATEGORY=P2P
+      - TECHNOLOGY=NordLynx
+      - NETWORK=192.168.1.0/24
 
-  #   ports:
-  #     - 8112:8112
-  #     - 9117:9117
+    ports:
+      - 8112:8112
+      - 9117:9117
 
-  #   networks:
-  #     - traefik_proxy
+    networks:
+      - traefik_proxy
 
 
   apache: # {DOMAINNAME} frontend
@@ -241,6 +241,10 @@ services:
     image: linuxserver/deluge
     container_name: deluge
     restart: unless-stopped
+    network_mode: service:vpn
+
+    depends_on:
+      - vpn
 
     volumes:
       - ${DOCKER_STORAGE}/deluge/config:/config
@@ -252,8 +256,8 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
 
-    networks:
-      - traefik_proxy
+    # networks:
+    #   - traefik_proxy
 
     labels:
       - "traefik.enable=true"
@@ -341,6 +345,10 @@ services:
     image: linuxserver/jackett
     container_name: jackett
     restart: unless-stopped
+    network_mode: service:vpn
+
+    depends_on:
+      - vpn
 
     volumes:
       - ${DOCKER_STORAGE}/jackett/config:/config
@@ -349,8 +357,8 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
 
-    networks:
-      - traefik_proxy
+    # networks:
+    #   - traefik_proxy
 
     labels:
       - "traefik.enable=true"
