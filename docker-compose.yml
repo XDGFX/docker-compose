@@ -139,21 +139,15 @@ services:
       - "traefik.http.routers.portainer.middlewares=chain-auth@file"
 
 
-  ouroboros:
-    container_name: ouroboros
+  watchtower:
+    container_name: watchtower
     restart: unless-stopped
-    image: pyouroboros/ouroboros
+    image: containrrr/watchtower
+    command: --cleanup
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - CLEANUP=true
-      - INTERVAL=300
-      - LOG_LEVEL=info
-      - SELF_UPDATE=true
 
 
 
@@ -661,7 +655,7 @@ services:
 
 # --- GAME SERVERS --- #
   papermc:
-    image: marctv/minecraft-papermc-server:1.15
+    image: marctv/minecraft-papermc-server:1.16
     container_name: papermc
     stdin_open: true
     tty: true
