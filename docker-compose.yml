@@ -1,54 +1,181 @@
 version: "3.7"
 services:
 
-## --- ONLY NON VITAL / TESTING SERVICES HERE ---
-## --- VITAL SERVICES GO IN vital-docker-compose.yml ---
+  # --- NETWORK SERVICES ---
 
-# --- NETWORK SERVICES --- #
-  # heimdall:
-  #   image: linuxserver/heimdall
-  #   container_name: heimdall
-  #   restart: unless-stopped
+  # Traefik
+  # Used as a reverse proxy for internal services, to the outside internet.
+  # Allows a means of accessing services through subdomains (or subdirectories)
+  # of a TLD on port 80 (or 443), rather than different ports.
+  # It uses Cloudflare and LetsEncrypt as certificate resolvers, so access to
+  # the server is over HTTPS until it's reached Traefik.
+  traefik:
+    container_name: traefik
+    image: traefik:v2.2
+    restart: unless-stopped
 
-  #   volumes:
-  #     - ${DOCKER_STORAGE}/heimdall/config:/config
+    command:
+      - --global.checkNewVersion=true
+      - --global.sendAnonymousUsage=false
 
-  #   environment:
-  #     - PUID=${PUID}
-  #     - PGID=${PGID}
+      - --entryPoints.http.address=:80
+      - --entryPoints.https.address=:443
 
-  #   networks:
-  #     - traefik_proxy
+      # Allow these IPs to set the X-Forwarded-* headers - Cloudflare IPs: https://www.cloudflare.com/ips/
+      - --entrypoints.https.forwardedHeaders.trustedIPs=173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/12,172.64.0.0/13,131.0.72.0/22
+      # - --entryPoints.traefik.address=:8080
 
-  #   labels:
-  #     # TRAEFIK ENABLE
-  #     - "traefik.enable=true"
-  #     - "traefik.frontend.rule=Host:${DOMAINNAME}"
-  #     - "traefik.port=443"
-  #     - "traefik.protocol=https"  # Needed otherwise 400 error
+      # Set to true to allow web-ui api access defined in labels
+      - --api=false
+      - --api.insecure=false
 
-  #     # AUTH BLOCK
-  #     - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
-  #     - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
-  #     - "traefik.frontend.auth.forward.trustForwardHeader=true"
+      - --log=true
+      - --log.level=WARN # (Default: error) DEBUG, INFO, WARN, ERROR, FATAL, PANIC
+      - --accessLog=true
+      - --accessLog.filePath=/traefik.log
+      - --accessLog.bufferingSize=100 # Configuring a buffer of 100 lines
+      - --accessLog.filters.statusCodes=400-499
 
-  #     # GENERAL SECURITY
-  #     - "traefik.frontend.headers.SSLRedirect=true"
-  #     - "traefik.frontend.headers.STSSeconds=315360000"
-  #     - "traefik.frontend.headers.browserXSSFilter=true"
-  #     - "traefik.frontend.headers.contentTypeNosniff=true"
-  #     - "traefik.frontend.headers.forceSTSHeader=true"
-  #     - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
-  #     - "traefik.frontend.headers.STSIncludeSubdomains=true"
-  #     - "traefik.frontend.headers.STSPreload=true"
-  #     - "traefik.frontend.headers.frameDeny=true"
+      - --providers.docker=true
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --providers.docker.defaultrule=Host(`{{ index .Labels "com.docker.compose.service" }}.$DOMAINNAME`)
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=traefik_proxy
+      - --providers.docker.swarmMode=false
 
+      - --providers.file.directory=/rules # Load dynamic configuration from one or more .toml or .yml files in a directory.
+      # - --providers.file.filename=/path/to/file # Load dynamic configuration from a file.
+      - --providers.file.watch=true # Only works on top level files in the rules folder
 
+      # - --certificatesResolvers.dns-cloudflare.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory # LetsEncrypt Staging Server - uncomment when testing
+      - --certificatesResolvers.dns-cloudflare.acme.email=$CLOUDFLARE_EMAIL
+      - --certificatesResolvers.dns-cloudflare.acme.storage=/acme.json
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.provider=cloudflare
+      - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53
+
+      - --serversTransport.insecureSkipVerify=true # To allow unsigned https connections between Traefik and services
+
+    networks:
+      - traefik_proxy
+
+    security_opt:
+      - no-new-privileges:true
+
+    ports:
+      - 80:80
+      - 443:443
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_STORAGE}/traefik/rules:/rules
+      - ${DOCKER_STORAGE}/traefik/acme/acme.json:/acme.json
+      - ${DOCKER_STORAGE}/traefik/traefik.log:/traefik.log
+      - ${DOCKER_STORAGE}/shared:/shared
+
+    environment:
+      - CF_API_EMAIL=$CLOUDFLARE_EMAIL
+      - CF_API_KEY=$CLOUDFLARE_API_KEY
+
+    labels:
+      - "traefik.enable=true"
+
+      # HTTP-to-HTTPS Redirect
+      - "traefik.http.routers.http-catchall.entrypoints=http"
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+      # HTTP Routers
+      - "traefik.http.routers.traefik.entrypoints=https"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.$DOMAINNAME`)"
+      - "traefik.http.routers.traefik.tls=true"
+
+      - "traefik.http.routers.traefik.tls.domains[0].main=$DOMAINNAME"
+      - "traefik.http.routers.traefik.tls.domains[0].sans=*.$DOMAINNAME"
+
+      ## HTTP Services
+      - "traefik.http.routers.traefik.service=api@internal"
+
+      ## Middlewares
+      - "traefik.http.routers.traefik.middlewares=chain-auth@file"
+
+    extra_hosts:
+      # Allows Traefik to route to containers using host networking
+      - host.docker.internal:172.17.0.1
+
+  # traefik-forward-auth
+  # Forward auth allows O-auth as a forms of authentication for services
+  # accessed through Traefik. Here it's configured to use Google Oauth.
+  traefik-forward-auth:
+    image: thomseddon/traefik-forward-auth:2
+    container_name: traefik-forward-auth
+    restart: always
+
+    networks:
+      - traefik_proxy
+
+    environment:
+      - CLIENT_ID=${TRAEFIK_CLIENT_ID}
+      - CLIENT_SECRET=${TRAEFIK_CLIENT_SECRET}
+      - SECRET=${TRAEFIK_SECRET}
+      - OIDC_ISSUER=https://accounts.google.com
+      - COOKIE_DOMAIN=${DOMAINNAME}
+      - AUTH_HOST=auth.${DOMAINNAME}
+      - WHITELIST=${TRAEFIK_WHITELIST}
+
+    labels:
+      - "traefik.enable=true"
+
+      ## HTTP Routers
+      - "traefik.http.routers.traefik-forward-auth.entryPoints=https"
+      - "traefik.http.routers.traefik-forward-auth.rule=Host(`auth.${DOMAINNAME}`)"
+      - "traefik.http.routers.traefik-forward-auth.tls=true"
+
+      ## HTTP Services
+      - "traefik.http.routers.traefik-forward-auth.service=traefik-forward-auth"
+      - "traefik.http.services.traefik-forward-auth.loadbalancer.server.port=4181"
+
+      ## Middlewares
+      - "traefik.http.routers.traefik-forward-auth.middlewares=chain-auth@file"
+
+  # cloudflare-ddns
+  # DDNS services (dynamic domain name service) allow the public IP associated
+  # with your network to change (which is inevitable on a residential ISP), by
+  # scanning for IP changes and pushing them to Cloudflare.
+  cloudflare-ddns:
+    image: oznu/cloudflare-ddns:latest
+    container_name: cloudflare-ddns
+    restart: always
+
+    environment:
+      - API_KEY=${CLOUDFLARE_DDNS_API_KEY}
+      - ZONE=${DOMAINNAME}
+      - PROXIED=false
+
+  # MariaDB
+  # A common open-source relational database.
+  db:
+    image: mariadb:10.5
+    container_name: db
+    restart: always
+
+    networks:
+      - traefik_proxy
+
+    volumes:
+      - ${DOCKER_STORAGE}/db:/var/lib/mysql
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+  # NordVPN
+  # Allows containers to connect to the internet through a NordVPN connection by
+  # setting `network_mode: service:vpn`.
   vpn:
     image: azinchen/nordvpn
     container_name: vpn
     restart: unless-stopped
-    # network_mode: bridge
 
     cap_add:
       - net_admin
@@ -66,15 +193,18 @@ services:
       - TECHNOLOGY=NordLynx
       - NETWORK=192.168.1.0/24
 
-    ports:
-      - 8112:8112
-      - 9117:9117
+    # Any port forwarding for services routed through the VPN must be done here.
+    # This is because as far as another service is concerned, all web traffic is
+    # part of this VPN container, and not the original routed container.
+    # ports:
+    #   - 9117:9117  # Jackett
 
     networks:
       - traefik_proxy
 
-
-  apache: # {DOMAINNAME} frontend
+  # Apache
+  # A common webserver, used to serve ${DOMAINNAME}
+  apache:
     image: httpd:alpine
     container_name: apache-startpage
     restart: unless-stopped
@@ -104,10 +234,12 @@ services:
       ## Middlewares
       - "traefik.http.routers.apache.middlewares=chain-no-auth@file"
 
+  # --- DOCKER SERVICES ---
 
-# --- DOCKER SERVICES --- #
+  # Portainer
+  # WebUI based Docker container management
   portainer:
-    image: portainer/portainer
+    image: portainer/portainer-ce:2.13.1
     container_name: portainer
     restart: unless-stopped
     command: -H unix:///var/run/docker.sock
@@ -125,42 +257,136 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.portainer.entryPoints=https"
       - "traefik.http.routers.portainer.rule=Host(`portainer.$DOMAINNAME`)"
       - "traefik.http.routers.portainer.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.portainer.service=portainer"
       - "traefik.http.services.portainer.loadbalancer.server.port=9000"
-    
+
       ## Middlewares
       - "traefik.http.routers.portainer.middlewares=chain-auth@file"
 
+  # # Watchtower
+  # # Used to automatically update containers.
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   container_name: watchtower
+  #   restart: unless-stopped
+  #   command: --cleanup
 
-  watchtower:
-    container_name: watchtower
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+
+  # Registry
+  # Used as a local container registry to store compiled Docker containers
+  registry:
+    image: registry:2
+    container_name: registry
     restart: unless-stopped
-    image: containrrr/watchtower
-    command: --cleanup
 
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_STORAGE}/registry:/var/lib/registry
 
+    environment:
+      - REGISTRY_HTTP_ADDR=0.0.0.0:5000
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
 
+    networks:
+      - traefik_proxy
 
+    labels:
+      - "traefik.enable=true"
 
-# --- MEDIA SERVER --- #
+      ## HTTP Routers
+      - "traefik.http.routers.registry.entryPoints=https"
+      - "traefik.http.routers.registry.rule=Host(`cr.$DOMAINNAME`)"
+      - "traefik.http.routers.registry.tls=true"
+
+      ## HTTP Services
+      - "traefik.http.routers.registry.service=registry"
+      - "traefik.http.services.registry.loadbalancer.server.port=5000"
+
+      ## Middlewares
+      - "traefik.http.routers.registry.middlewares=chain-basic-auth@file"
+
+  # Docker Registry UI
+  # Used as a front-end to view and manage the self-hosted container registry above
+  docker-registry-ui:
+    image: joxit/docker-registry-ui
+    container_name: docker-registry-ui
+    restart: unless-stopped
+
+    depends_on:
+      - registry
+
+    environment:
+      - DELETE_IMAGES=true
+      - REGISTRY_TITLE=XDGFX Private Docker Repository
+      - NGINX_PROXY_PASS_URL=http://registry:5000
+      - SINGLE_REGISTRY=true
+
+    networks:
+      - traefik_proxy
+
+    labels:
+      - "traefik.enable=true"
+
+      ## HTTP Routers
+      - "traefik.http.routers.containers.entryPoints=https"
+      - "traefik.http.routers.containers.rule=Host(`containers.$DOMAINNAME`)"
+      - "traefik.http.routers.containers.tls=true"
+
+      ## HTTP Services
+      - "traefik.http.routers.containers.service=containers"
+      - "traefik.http.services.containers.loadbalancer.server.port=80"
+
+      ## Middlewares
+      - "traefik.http.routers.containers.middlewares=chain-auth@file"
+
+  # nebula:
+  #   image: buildsociety/nebula
+  #   container_name: nebula
+  #   restart: unless-stopped
+
+  #   networks:
+  #     - traefik_proxy
+
+  #   volumes:
+  #     - ${DOCKER_STORAGE}/nebula/config:/config
+
+  #   devices:
+  #     - /dev/net/tun:/dev/net/tun
+
+  #   privileged: true
+
+  #   labels:
+  #     - "traefik.enable=true"
+
+  #     ## HTTP Routers
+  #     - "traefik.http.routers.nebula.entryPoints=https"
+  #     - "traefik.http.routers.nebula.rule=Host(`nebula.$DOMAINNAME`)"
+  #     - "traefik.http.routers.nebula.tls=true"
+
+  #     ## HTTP Services
+  #     - "traefik.http.routers.nebula.service=nebula"
+  #     - "traefik.http.services.nebula.loadbalancer.server.port=4242"
+
+  #     ## Middlewares
+  #     - "traefik.http.routers.nebula.middlewares=chain-no-auth@file"
+
+  # --- MEDIA SERVER ---
   plex:
     container_name: plex
-    image: linuxserver/plex
+    image: ghcr.io/linuxserver/plex
     restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/plex/config:/config
       - ${MEDIA_DIR}:/mnt/media
-      - /opt/PPP:/mnt/PPP
 
     environment:
       - PUID=${PUID}
@@ -186,22 +412,21 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.plex.entryPoints=https"
       - "traefik.http.routers.plex.rule=Host(`plex.$DOMAINNAME`)"
       - "traefik.http.routers.plex.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.plex.service=plex"
       - "traefik.http.services.plex.loadbalancer.server.port=32400"
-    
+
       ## Middlewares
       - "traefik.http.routers.plex.middlewares=chain-no-auth@file"
 
-
   tautulli:
-    image: linuxserver/tautulli
+    image: ghcr.io/linuxserver/tautulli
     container_name: tautulli
     restart: unless-stopped
 
@@ -217,22 +442,21 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.tautulli.entryPoints=https"
       - "traefik.http.routers.tautulli.rule=Host(`tautulli.$DOMAINNAME`)"
       - "traefik.http.routers.tautulli.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.tautulli.service=tautulli"
       - "traefik.http.services.tautulli.loadbalancer.server.port=8181"
-    
+
       ## Middlewares
       - "traefik.http.routers.tautulli.middlewares=chain-auth@file"
 
-
   deluge:
-    image: linuxserver/deluge
+    image: ghcr.io/linuxserver/deluge
     container_name: deluge
     restart: unless-stopped
     network_mode: service:vpn
@@ -242,9 +466,9 @@ services:
 
     volumes:
       - ${DOCKER_STORAGE}/deluge/config:/config
-      - ${DOCKER_STORAGE}/deluge/watch:/watch
-      - ${DELUGE_TORRENTS_DIR}:/torrents
-      - ${DELUGE_DOWNLOADS_DIR}:/downloads
+      - ${BLACKHOLE_DIR}:/watch
+      - ${TORRENTS_DIR}:/torrents
+      - ${DOWNLOADS_DIR}:/downloads
 
     environment:
       - PUID=${PUID}
@@ -255,29 +479,29 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.deluge.entryPoints=https"
       - "traefik.http.routers.deluge.rule=Host(`deluge.$DOMAINNAME`)"
       - "traefik.http.routers.deluge.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.deluge.service=deluge"
       - "traefik.http.services.deluge.loadbalancer.server.port=8112"
-    
+
       ## Middlewares
       - "traefik.http.routers.deluge.middlewares=chain-auth@file"
 
-
   sonarr:
-    image: linuxserver/sonarr
+    image: ghcr.io/linuxserver/sonarr
     container_name: sonarr
     restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/sonarr/config:/config
       - ${TV_DIR}:/tv
-      - ${DELUGE_DOWNLOADS_DIR}:/downloads
+      - ${DOWNLOADS_DIR}:/downloads
+      - ${ANIME_DIR}:/anime
 
     environment:
       - PUID=${PUID}
@@ -288,29 +512,28 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.sonarr.entryPoints=https"
       - "traefik.http.routers.sonarr.rule=Host(`sonarr.$DOMAINNAME`)"
       - "traefik.http.routers.sonarr.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.sonarr.service=sonarr"
       - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
-    
+
       ## Middlewares
       - "traefik.http.routers.sonarr.middlewares=chain-auth@file"
 
-
   radarr:
-    image: linuxserver/radarr
+    image: ghcr.io/linuxserver/radarr
     container_name: radarr
     restart: unless-stopped
 
     volumes:
       - ${DOCKER_STORAGE}/radarr/config:/config
       - ${FILMS_DIR}:/movies
-      - ${DELUGE_DOWNLOADS_DIR}:/downloads
+      - ${DOWNLOADS_DIR}:/downloads
 
     environment:
       - PUID=${PUID}
@@ -321,22 +544,21 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.radarr.entryPoints=https"
       - "traefik.http.routers.radarr.rule=Host(`radarr.$DOMAINNAME`)"
       - "traefik.http.routers.radarr.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.radarr.service=radarr"
       - "traefik.http.services.radarr.loadbalancer.server.port=7878"
-    
+
       ## Middlewares
       - "traefik.http.routers.radarr.middlewares=chain-auth@file"
 
-
   jackett:
-    image: linuxserver/jackett
+    image: ghcr.io/linuxserver/jackett
     container_name: jackett
     restart: unless-stopped
     network_mode: service:vpn
@@ -351,35 +573,30 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
 
-    # networks:
-    #   - traefik_proxy
-
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.jackett.entryPoints=https"
       - "traefik.http.routers.jackett.rule=Host(`jackett.$DOMAINNAME`)"
       - "traefik.http.routers.jackett.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.jackett.service=jackett"
       - "traefik.http.services.jackett.loadbalancer.server.port=9117"
-    
+
       ## Middlewares
       - "traefik.http.routers.jackett.middlewares=chain-auth@file"
 
-
-
-# --- OTHER TOOLS --- #
-  crashplan:
-    image: jlesage/crashplan-pro
-    container_name: crashplan
+  ultrasonics:
+    image: xdgfx/ultrasonics:1.2.0
+    container_name: ultrasonics
     restart: unless-stopped
 
     volumes:
-      - ${DOCKER_STORAGE}/crashplan/config:/config
-      - ${FILES_DIR}:/storage:ro
+      - ${DOCKER_STORAGE}/ultrasonics/config:/config
+      - ${DOCKER_STORAGE}/ultrasonics/plugins:/plugins
+      - ${MEDIA_DIR}:/mnt/media
 
     environment:
       - PUID=${PUID}
@@ -390,22 +607,86 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
+      ## HTTP Routers
+      - "traefik.http.routers.ultrasonics.entryPoints=https"
+      - "traefik.http.routers.ultrasonics.rule=Host(`ultrasonics.$DOMAINNAME`)"
+      - "traefik.http.routers.ultrasonics.tls=true"
+
+      ## HTTP Services
+      - "traefik.http.routers.ultrasonics.service=ultrasonics"
+      - "traefik.http.services.ultrasonics.loadbalancer.server.port=5000"
+
+      ## Middlewares
+      - "traefik.http.routers.ultrasonics.middlewares=chain-auth@file"
+
+  # --- OTHER TOOLS ---
+
+  # homeassistant:
+  #   image: "ghcr.io/home-assistant/home-assistant:stable"
+  #   container_name: homeassistant
+  #   restart: unless-stopped
+
+  #   volumes:
+  #     - ${DOCKER_STORAGE}/homeassistant/config:/config
+  #     - /etc/localtime:/etc/localtime:ro
+
+  #   # networks:
+  #   #   - traefik_proxy
+
+  #   # privileged: true
+  #   network_mode: host
+
+  #   labels:
+  #     - "traefik.enable=true"
+
+  #     ## HTTP Routers
+  #     - "traefik.http.routers.homeassistant.entryPoints=https"
+  #     - "traefik.http.routers.homeassistant.rule=Host(`homeassistant.$DOMAINNAME`)"
+  #     - "traefik.http.routers.homeassistant.tls=true"
+
+  #     ## HTTP Services
+  #     - "traefik.http.routers.homeassistant.service=homeassistant"
+  #     - "traefik.http.services.homeassistant.loadbalancer.server.port=8123"
+
+  #     ## Middlewares
+  #     - "traefik.http.routers.homeassistant.middlewares=chain-auth@file"
+
+
+  crashplan:
+    image: jlesage/crashplan-pro
+    container_name: crashplan
+    restart: unless-stopped
+
+    volumes:
+      - ${DOCKER_STORAGE}/crashplan/config:/config
+      - ${FILES_DIR}:/storage:ro
+      - /:/host:ro
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+    networks:
+      - traefik_proxy
+
+    labels:
+      - "traefik.enable=true"
+
       ## HTTP Routers
       - "traefik.http.routers.crashplan.entryPoints=https"
       - "traefik.http.routers.crashplan.rule=Host(`crashplan.$DOMAINNAME`)"
       - "traefik.http.routers.crashplan.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.crashplan.service=crashplan"
       - "traefik.http.services.crashplan.loadbalancer.server.port=5800"
-    
+
       ## Middlewares
       - "traefik.http.routers.crashplan.middlewares=chain-auth@file"
 
-
   duplicati:
-    image: linuxserver/duplicati
+    image: ghcr.io/linuxserver/duplicati
     container_name: duplicati
     restart: unless-stopped
 
@@ -421,20 +702,64 @@ services:
     networks:
       - traefik_proxy
 
+    ports:
+      - 8200:8200
+
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.duplicati.entryPoints=https"
       - "traefik.http.routers.duplicati.rule=Host(`duplicati.$DOMAINNAME`)"
       - "traefik.http.routers.duplicati.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.duplicati.service=duplicati"
       - "traefik.http.services.duplicati.loadbalancer.server.port=8200"
-    
+
       ## Middlewares
       - "traefik.http.routers.duplicati.middlewares=chain-auth@file"
+
+  borgmatic:
+    image: b3vis/borgmatic
+    container_name: borgmatic
+    restart: unless-stopped
+
+    volumes:
+      - "${DOCKER_STORAGE}/borgmatic/borgmatic.d:/etc/borgmatic.d"
+      - "${DOCKER_STORAGE}/borgmatic/.config/borg:/root/.config/borg"
+      - "${DOCKER_STORAGE}/borgmatic/.cache/borg:/root/.cache/borg"
+      - "/:/mnt/root:ro"
+      - "${BACKUPS_DIR}:/backups"
+
+    environment:
+      - PUID=0
+      - PGID=0
+
+  # rclone:
+  #   image: mumiehub/rclone-mount
+  #   container_name: rclone
+  #   restart: unless-stopped
+
+  #   volumes:
+  #     - "${DOCKER_STORAGE}/rclone/config:/config"
+  #     - "${RCLONE_MOUNT_POINT}:/mnt/mediaefs:shared"
+
+  #   privileged: true
+
+  #   devices:
+  #     - "/dev/fuse"
+
+  #   cap_add:
+  #     - MKNOD
+  #     - SYS_ADMIN
+
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
+  #     - RemotePath=${RCLONE_REMOTE_PATH}
+  #     - ConfigName=rclone.conf
+  #     - "MountCommands=--vfs-cache-mode writes --allow-other --allow-non-empty --dir-cache-time 48h --poll-interval 5m --buffer-size 128M"
 
 
   adminer:
@@ -451,23 +776,22 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.adminer.entryPoints=https"
       - "traefik.http.routers.adminer.rule=Host(`adminer.$DOMAINNAME`)"
       - "traefik.http.routers.adminer.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.adminer.service=adminer"
       - "traefik.http.services.adminer.loadbalancer.server.port=8080"
-    
+
       ## Middlewares
       - "traefik.http.routers.adminer.middlewares=chain-auth@file"
 
-
   # unifi-controller:
   #   restart: unless-stopped
-  #   image: linuxserver/unifi-controller
+  #   image: ghcr.io/linuxserver/unifi-controller
   #   container_name: unifi-controller
 
   #   volumes:
@@ -477,6 +801,9 @@ services:
   #     - PUID=${PUID}
   #     - PGID=${PGID}
 
+  #   # Note: Disable UFW before attempting to adopt!
+  #   # Also, L3 adoption needs to be performed, or ssh into the AP
+  #   # and use `set-inform http://{SERVER_IP}:8080/inform`
   #   ports:
   #     - 3478:3478/udp
   #     - 10001:10001/udp
@@ -487,9 +814,25 @@ services:
   #     - 8880:8880
   #     - 6789:6789
 
+  #   labels:
+  #     - "traefik.enable=true"
+
+  #     ## HTTP Routers
+  #     - "traefik.http.routers.unifi.entryPoints=https"
+  #     - "traefik.http.routers.unifi.rule=Host(`unifi.$DOMAINNAME`)"
+  #     - "traefik.http.routers.unifi.tls=true"
+
+  #     ## HTTP Services
+  #     - "traefik.http.routers.unifi.service=unifi"
+  #     - "traefik.http.services.unifi.loadbalancer.server.port=8443"
+  #     - "traefik.http.services.nextcloud.loadbalancer.server.scheme=https"
+
+  #     ## Middlewares
+  #     - "traefik.http.routers.unifi.middlewares=chain-auth@file"
+
 
   netdata:
-    image: netdata/netdata
+    image: netdata/netdata:stable
     container_name: netdata
     restart: unless-stopped
 
@@ -500,41 +843,40 @@ services:
       - apparmor:unconfined
 
     volumes:
+      - ${DOCKER_STORAGE}/netdata/config:/etc/netdata
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ${DOCKER_STORAGE}/netdata/data/config:/etc/netdata
+      - /etc/os-release:/host/etc/os-release:ro
 
     environment:
       - PUID=${PUID}
-      - PGID=999  #${PGID}
+      - PGID=999 #${PGID}
 
     networks:
       - traefik_proxy
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.netdata.entryPoints=https"
       - "traefik.http.routers.netdata.rule=Host(`netdata.$DOMAINNAME`)"
       - "traefik.http.routers.netdata.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.netdata.service=netdata"
       - "traefik.http.services.netdata.loadbalancer.server.port=19999"
-    
+
       ## Middlewares
       - "traefik.http.routers.netdata.middlewares=chain-auth@file"
 
-
   nextcloud:
-    image: linuxserver/nextcloud
+    image: ghcr.io/linuxserver/nextcloud
     container_name: nextcloud
     restart: unless-stopped
-
-    ports:
-      - 1234:443
 
     volumes:
       - ${DOCKER_STORAGE}/nextcloud/config:/config
@@ -549,43 +891,19 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.nextcloud.entryPoints=https"
       - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.$DOMAINNAME`)"
       - "traefik.http.routers.nextcloud.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.nextcloud.service=nextcloud"
       - "traefik.http.services.nextcloud.loadbalancer.server.port=443"
       - "traefik.http.services.nextcloud.loadbalancer.server.scheme=https"
-    
+
       ## Middlewares
       - "traefik.http.routers.nextcloud.middlewares=chain-no-auth@file"
-      
-    # labels:
-    #   # TRAEFIK ENABLE
-    #   - "traefik.enable=true"
-    #   - "traefik.frontend.rule=Host:nextcloud.${DOMAINNAME}"
-    #   - "traefik.port=443"
-      # - "traefik.protocol=https"  # Needed otherwise 400 error
-
-    #   # AUTH BLOCK
-    #   # - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
-    #   # - "traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User"
-    #   # - "traefik.frontend.auth.forward.trustForwardHeader=true"
-
-    #   # GENERAL SECURITY
-    #   - "traefik.frontend.headers.SSLRedirect=true"
-    #   - "traefik.frontend.headers.STSSeconds=315360000"
-    #   - "traefik.frontend.headers.browserXSSFilter=true"
-    #   - "traefik.frontend.headers.contentTypeNosniff=true"
-    #   - "traefik.frontend.headers.forceSTSHeader=true"
-    #   - "traefik.frontend.headers.SSLHost=${DOMAINNAME}"
-    #   - "traefik.frontend.headers.STSIncludeSubdomains=true"
-    #   - "traefik.frontend.headers.STSPreload=true"
-    #   - "traefik.frontend.headers.frameDeny=true"
-
 
   transfer.sh:
     image: dutchcoders/transfer.sh
@@ -602,22 +920,52 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.transfer.entryPoints=https"
       - "traefik.http.routers.transfer.rule=Host(`transfer.$DOMAINNAME`)"
       - "traefik.http.routers.transfer.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.transfer.service=transfer"
       - "traefik.http.services.transfer.loadbalancer.server.port=8080"
-    
+
       ## Middlewares
       - "traefik.http.routers.transfer.middlewares=chain-no-auth@file"
 
+  snapdrop:
+    image: jarylc/snapdrop
+    container_name: snapdrop
+    restart: unless-stopped
+
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - HTTP_PORT=8080
+      - PORT=3000
+      - SINGLE_ROOM=1
+      - STUN_SERVER=stun:stun.l.google.com:19302
+
+    networks:
+      - traefik_proxy
+
+    labels:
+      - "traefik.enable=true"
+
+      ## HTTP Routers
+      - "traefik.http.routers.drop.entryPoints=https"
+      - "traefik.http.routers.drop.rule=Host(`drop.$DOMAINNAME`)"
+      - "traefik.http.routers.drop.tls=true"
+
+      ## HTTP Services
+      - "traefik.http.routers.drop.service=drop"
+      - "traefik.http.services.drop.loadbalancer.server.port=8080"
+
+      ## Middlewares
+      - "traefik.http.routers.drop.middlewares=chain-no-auth@file"
 
   resilio-sync:
-    image: linuxserver/resilio-sync
+    image: ghcr.io/linuxserver/resilio-sync
     container_name: resilio-sync
     restart: unless-stopped
 
@@ -638,44 +986,82 @@ services:
 
     labels:
       - "traefik.enable=true"
-    
+
       ## HTTP Routers
       - "traefik.http.routers.sync.entryPoints=https"
       - "traefik.http.routers.sync.rule=Host(`sync.$DOMAINNAME`)"
       - "traefik.http.routers.sync.tls=true"
-    
+
       ## HTTP Services
       - "traefik.http.routers.sync.service=sync"
       - "traefik.http.services.sync.loadbalancer.server.port=8888"
-    
+
       ## Middlewares
       - "traefik.http.routers.sync.middlewares=chain-auth@file"
 
-
-
-# --- GAME SERVERS --- #
-  papermc:
-    image: marctv/minecraft-papermc-server:1.16
-    container_name: papermc
-    stdin_open: true
-    tty: true
+  telegram-ytdl:
+    build: https://github.com/XDGFX/telegramYTDL.git
+    image: telegram-ytdl
+    container_name: telegram-ytdl
     restart: unless-stopped
 
-    networks:
-      - default
-
-    ports:
-      - 25565:25565
+    user: 1000:1000
 
     volumes:
-      - ${DOCKER_STORAGE}/papermc:/data
+      - ${YTDL_DIR}:/downloads
+
+    environment:
+      - DOWNLOAD_PATH=/downloads
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+
+  # --- GAME SERVERS --- #
+  minecraft-server:
+    image: itzg/minecraft-server:java8
+    container_name: minecraft
+    restart: unless-stopped
+
+    volumes:
+      - ${DOCKER_STORAGE}/minecraft-forge:/data
 
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
+      - TYPE=FORGE
+      - VERSION=1.16.5
+      - FORGEVERSION=36.2.2
+      - MEMORY=14G
+      - EULA=TRUE
+      - ENABLE_AUTOPAUSE=TRUE
+      - AUTOPAUSE_TIMEOUT_EST=120
+      - AUTOPAUSE_TIMEOUT_INIT=60
+      - WHITELIST=Morric603
+      - OPS=Morric603
+      - LEVEL_TYPE=BIOMESOPLENTY
+
+    ports:
+      - '25565:25565'
+  # papermc:
+  #   image: marctv/minecraft-papermc-server:1.16
+  #   container_name: papermc
+  #   stdin_open: true
+  #   tty: true
+  #   restart: unless-stopped
+
+  #   networks:
+  #     - default
+
+  #   ports:
+  #     - 25565:25565
+
+  #   volumes:
+  #     - ${DOCKER_STORAGE}/papermc:/data
+
+  #   environment:
+  #     - PUID=${PUID}
+  #     - PGID=${PGID}
 
 
-# --- END OF SERVICES --- #
+  # --- END OF SERVICES --- #
 
 networks:
   traefik_proxy:
